@@ -274,3 +274,39 @@ struct CmdLWQ {
 # 4 - Application Layer
 
 The application layer stands above the data link layer in that it represents the various services that are controlled through the memory area and deliver their responses through that.
+
+# 5 - Addressing
+
+Sondbus uses 2 layers of addressing:
+
+- [Physical Addressing](#51---physical-addressing)
+- [Logical Addressing](#52---logical-addressing)
+
+## 5.1 - Physical Addressing
+
+The physical address of a slave is fixed in that it is bound to the physical interface that is attached to the bus.
+It consists of 48 bits (6 octets) that are equivalent to a MAC address.
+This address is hardcoded into each slave and should not change, as data could be bound to it.
+
+## 5.2 - Logical Addressing
+
+A logical address is split into 2 parts:
+
+- Universe (4 bits)
+- Address (8 bits)
+
+A universe is a collection of 255 devices, while an address is unique within its universe.
+
+This separation allows for partitioning of the network to group up slaves in a way that allows the master to optimize transfers and broadcasts.
+
+# 6 - Slave synchronization
+
+Sondbus requires a slave to keep exact track of all submitted bytes on the bus.
+This requires some mechanism for a slave to synchronize with the bus and 'clock in' to the conversation.
+
+To facilitate this mechanism, all slaves have an internal flag, here called `in_sync` that determines if a slave is synchronized with the bus.
+This flag is required for a slave to process **any** data received on the bus.
+If it is not set, the slave will only accept one frame: [Sync](#311---sync).
+In this out-of-sync state, the slave ignores all bytes, except they line up as the [Sync](#311---sync) frame.
+
+If a slave is out-of-sync (having the `in_sync` flag not asserted), it **must** return to a safe state that does not require bus communication.
