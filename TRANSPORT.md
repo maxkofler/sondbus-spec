@@ -13,8 +13,11 @@ All multi-byte values are encoded in little-endian fashion.
 
 The transport layer of sondbus comes in two flavors:
 
-- Single-Command
-- Multi-Command
+- [1: `Single-Command`](#1---single-command): Single commands are cycled through the bus
+- [2: `Multi-Command`](#2---multi-command): Multiple commands are cycled through the bus (optional)
+
+Sondbus requires the [Single-Command](#1---single-command) mode to be implemented by all devices that are on the bus. \
+The [Multi-Command](#2---multi-command) mode can only be used if **all** devices on the network support this mode.
 
 # 1 - Single-Command
 
