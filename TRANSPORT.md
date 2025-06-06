@@ -51,13 +51,11 @@ This mode is suited to bigger systems that have more processing and memory capac
 
 - [3.1: `0x00` - `NOP` - NoOp](#31---nop)
 - [3.1: `0x10` - `SYN` - Sync](#32---sync)
-- [3.2: `0x12` - `BWQ` - Broadcast Write](#33---bwq---broadcast-write)
-- [3.3: `0x14` - `PRQ` - Physically Addressed Read Request](#34---prq---physically-addressed-read-request)
-- [3.4: `0x16` - `PWQ` - Physically Addressed Write Request](#35---pwq---physically-addressed-write-request)
-- [3.5: `0x18` - `XRS` - Read Response](#36---xrs---read-response)
-- [3.6: `0x1A` - `XWS` - Write Response](#37---xws---write-response)
-- [3.7: `0x2_` - `LRQ` - Logically Addressed Read Request](#38---lrq---logically-addressed-read-request)
-- [3.8: `0x4_` - `LWQ` - Logically Addressed Write Request](#39---lwq---logically-addressed-write-request)
+- [3.2: `0x12` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
+- [3.3: `0x14` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
+- [3.4: `0x16` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
+- [3.6: `0x2_` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
+- [3.7: `0x4_` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
 
 ## 3.1 - Nop
 
@@ -98,14 +96,14 @@ These 15 bytes + the CRC at the end of the frame should be unique enough to make
 1F 2E 3D 4C 5B 6A 79 88 97 A6 B5 C4 D3 E2 F1
 ```
 
-## 3.3 - BWQ - Broadcast Write
+## 3.3 - BWR - Broadcast Write
 
 The `Broadcast Write` command (`0x12`) can be used to write to all synchronized slave's memories.
 This command yields no response, as the responses would collide.
 Due to this fact, the master has no indication of whether the command has succeeded or not.
 
 ```rust
-struct CmdBWQ {
+struct CmdBWR {
   /// The offset in the slave's memory to write to
   offset: u16,
 
@@ -117,16 +115,16 @@ struct CmdBWQ {
 }
 ```
 
-## 3.4 - PRQ - Physically Addressed Read Request
+## 3.4 - PRD - Physically Addressed Read
 
-The `Physically Addressed Read Request - PRQ` command (`0x14`) is used to request data from a slave's memory area.
+The `Physically Addressed Read - PRD` command (`0x14`) is used to request data from a slave's memory area.
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
-To deliver the requested data, a slave must use the [`Read Response - XRS`](#36---xrs---read-response) command.
+To deliver the requested data, the slave fills the `data` slots
 
 ```rust
-struct CmdPRQ {
+struct CmdPRD {
   /// The address of the slave to read from
   address: [u8; 6],
 
@@ -135,19 +133,26 @@ struct CmdPRQ {
 
   /// The length of the data to be read
   length: u16,
+
+  /// The CRC for the request-part of the frame,
+  /// includes: start, address, offset, length
+  crc: u8,
+
+  /// The response data filled in by the slave
+  data: [u8; length],
 }
 ```
 
-## 3.5 - PWQ - Physically Addressed Write Request
+## 3.5 - PWR - Physically Addressed Write
 
-The `Physically Addressed Write Request - PWQ` command (`0x16`) is used to write data to a slave's memory area.
+The `Physically Addressed Write - PWR` command (`0x16`) is used to write data to a slave's memory area.
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
-To deliver a response over the request, a slave must use the [`Write Response - XWS`](#37---xws---write-response) command.
+There is no response to this frame.
 
 ```rust
-struct CmdPWQ {
+struct CmdPWR {
   /// The address of the slave to write to
   address: [u8; 6],
 
@@ -162,57 +167,16 @@ struct CmdPWQ {
 }
 ```
 
-## 3.6 - XRS - Read Response
+## 3.6 - LRD - Logically Addressed Read
 
-The `Read Response - XRS` command (`0x18`) is used by slaves to deliver the requested data back to the master.
-It is the consequence of one of the following requests:
-
-- [`0x14` - `PRQ` - Physically Addressed Read Request](#34---prq---physically-addressed-read-request)
-- [`0x2_` - `LRQ` - Logically Addressed Read Request](#38---lrq---logically-addressed-read-request)
-
-The address and data length are implied, as the master already knows the size of the data requested and the address of the slave it requested this data from.
-
-This command may only be emitted if a slave is in sync.
-
-```rust
-struct CmdXRS {
-  /// The result code of the request
-  result: u8,
-
-  /// The data read from the slave's memory, if successful
-  data: [u8; length]
-}
-```
-
-## 3.7 - XWS - Write Response
-
-The `Write Response - XWS` command (`0x1A`) is used by slaves to inform the master about the outcome over a write request.
-It is the consequence of one of the following requests:
-
-- [`0x16` - `PWQ` - Physically Addressed Write Request](#35---pwq---physically-addressed-write-request)
-- [`0x4_` - `LWQ` - Logically Addressed Write Request](#39---lwq---logically-addressed-write-request)
-
-The address is implied, as the master already knows the address of the slave it requested a write from.
-
-This command may only be emitted if a slave is in sync.
-
-```rust
-struct CmdXWS {
-  /// The result code of the request
-  result: u8,
-}
-```
-
-## 3.8 - LRQ - Logically Addressed Read Request
-
-The `Logically Addressed Read Request - LRQ` command (`0x20` - `0x2F`) is used to request data from a slave's memory area.
+The `Logically Addressed Read - LRD` command (`0x20` - `0x2F`) is used to request data from a slave's memory area.
 The addressing scheme uses the logical address, where the lower nibble of the command is the universe and the slave's address is in the `address` field.
 A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
 
-To deliver the requested data, a slave must use the [`Read Response - XRS`](#36---xrs---read-response) command.
+To deliver the requested data, the slave fills the `data` slots
 
 ```rust
-struct CmdPRQ {
+struct CmdPRD {
   /// The address of the slave to read from
   address: u8,
 
@@ -221,19 +185,26 @@ struct CmdPRQ {
 
   /// The length of the data to be read
   length: u16,
+
+  /// The CRC for the request-part of the frame,
+  /// includes: start, address, offset, length
+  crc: u8,
+
+  /// The response data filled in by the slave
+  data: [u8; length],
 }
 ```
 
-## 3.9 - LWQ - Logically Addressed Write Request
+## 3.6 - LWR - Logically Addressed Write
 
 The `Logically Addressed Write Request - LWQ` command (`0x40` - `0x4F`) is used to write data to a slave's memory area.
 The addressing scheme uses the logical address, where the lower nibble of the command is the universe and the slave's address is in the `address` field.
 A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
 
-To deliver a response over the request, a slave must use the [`Write Response - XWS`](#37---xws---write-response) command.
+There is no response to this frame
 
 ```rust
-struct CmdLWQ {
+struct CmdLWR {
   /// The address of the slave to write to
   address: u8,
 
