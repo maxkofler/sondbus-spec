@@ -51,9 +51,9 @@ This mode is suited to bigger systems that have more processing and memory capac
 
 - [3.1: `0x00` - `NOP` - NoOp](#31---nop)
 - [3.1: `0x10` - `SYN` - Sync](#32---sync)
-- [3.2: `0x12` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
-- [3.3: `0x14` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
-- [3.4: `0x16` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
+- [3.2: `0x14` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
+- [3.3: `0x16` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
+- [3.4: `0x18` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
 - [3.6: `0x2_` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
 - [3.7: `0x4_` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
 
@@ -98,7 +98,7 @@ These 15 bytes + the CRC at the end of the frame should be unique enough to make
 
 ## 3.3 - BWR - Broadcast Write
 
-The `Broadcast Write` command (`0x12`) can be used to write to all synchronized slave's memories.
+The `Broadcast Write` command (`0x14`) can be used to write to all synchronized slave's memories.
 This command yields no response, as the responses would collide.
 Due to this fact, the master has no indication of whether the command has succeeded or not.
 
@@ -117,7 +117,7 @@ struct CmdBWR {
 
 ## 3.4 - PRD - Physically Addressed Read
 
-The `Physically Addressed Read - PRD` command (`0x14`) is used to request data from a slave's memory area.
+The `Physically Addressed Read - PRD` command (`0x16`) is used to request data from a slave's memory area.
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
@@ -145,7 +145,7 @@ struct CmdPRD {
 
 ## 3.5 - PWR - Physically Addressed Write
 
-The `Physically Addressed Write - PWR` command (`0x16`) is used to write data to a slave's memory area.
+The `Physically Addressed Write - PWR` command (`0x18`) is used to write data to a slave's memory area.
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
