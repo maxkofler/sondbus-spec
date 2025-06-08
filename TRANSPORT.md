@@ -50,10 +50,10 @@ This mode is suited to bigger systems that have more processing and memory capac
 # 3 - Commands
 
 - [3.1: `0x00` - `NOP` - NoOp](#31---nop)
-- [3.1: `0x10` - `SYN` - Sync](#32---sync)
-- [3.2: `0x14` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
-- [3.3: `0x16` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
-- [3.4: `0x18` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
+- [3.2: `0x10` - `SYN` - Sync](#32---sync)
+- [3.3: `0x14` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
+- [3.4: `0x16` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
+- [3.5: `0x18` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
 - [3.6: `0x2_` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
 - [3.7: `0x4_` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
 
