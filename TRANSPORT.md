@@ -73,19 +73,12 @@ For it to rejoin the communication, this frame type can be used.
 This frame type yields no response, as it is used in a broadcasting manner.
 If a slave is not in sync, it will not process any commands that are not this one, and thus also yield no responses, making sure an out-of-sync slave cannot disrupt communication.
 
-The `payload` field of the frame contains the following 16 byte structure:
+A frame with a `SYN` command looks as follows:
 
-```rust
-struct CmdSYN {
-  /// A fixed magic of 15 bytes - See `3.2.1 - Sync Magic`
-  magic: [u8; 15],
-
-  /// The version of the sondbus protocol the master wants to initiate
-  /// - `0`: Reserved  - should **never** be used
-  /// - `1`: Version 1.0.0
-  version: u8
-}
-```
+|        |  Command   | Magic  | Version |  CRC   |
+| :----- | :--------: | :----: | :-----: | :----: |
+| Source |   Master   | Master | Master  | Master |
+| Bytes  | 1 (`0x10`) |   15   |    1    |   1    |
 
 ### 3.2.1 - Sync Magic
 
@@ -102,18 +95,14 @@ The `Broadcast Write` command (`0x14`) can be used to write to all synchronized 
 This command yields no response, as the responses would collide.
 Due to this fact, the master has no indication of whether the command has succeeded or not.
 
-```rust
-struct CmdBWR {
-  /// The offset in the slave's memory to write to
-  offset: u16,
+A `BWR` frame looks as follows:
 
-  /// The length of the following `data` field
-  length: u16,
+|        |  Command   | Offset | Length |   Data   |  CRC   |
+| :----: | :--------: | :----: | :----: | :------: | :----: |
+| Source |   Master   | Master | Master |  Master  | Master |
+| Bytes  | 1 (`0x14`) |   2    |   2    | [Length] |   1    |
 
-  /// The data to be written to the slave's memory
-  data: [u8; length]
-}
-```
+There is no response to this frame, as it is used in a broadcasting manner. This means that the master has no feedback on whether the transaction succeeded or not.
 
 ## 3.4 - PRD - Physically Addressed Read
 
@@ -121,27 +110,14 @@ The `Physically Addressed Read - PRD` command (`0x16`) is used to request data f
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
-To deliver the requested data, the slave fills the `data` slots
+A `PRD` frame looks as follows:
 
-```rust
-struct CmdPRD {
-  /// The address of the slave to read from
-  address: [u8; 6],
+|        |  Command   | Address | Offset | Length |  CRC   |   Data   |  CRC  |
+| :----: | :--------: | :-----: | :----: | :----: | :----: | :------: | :---: |
+| Source |   Master   | Master  | Master | Master | Master |  Slave   | Slave |
+| Bytes  | 1 (`0x16`) |    6    |   2    |   1    |   1    | [Length] |   1   |
 
-  /// The offset in the slave's memory to read from
-  offset: u16,
-
-  /// The length of the data to be read
-  length: u16,
-
-  /// The CRC for the request-part of the frame,
-  /// includes: start, address, offset, length
-  crc: u8,
-
-  /// The response data filled in by the slave
-  data: [u8; length],
-}
-```
+The `Data` and last `CRC` sections are filled by the slave to deliver and confirm the data that has been read.
 
 ## 3.5 - PWR - Physically Addressed Write
 
@@ -149,23 +125,11 @@ The `Physically Addressed Write - PWR` command (`0x18`) is used to write data to
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
-There is no response to this frame.
+|        |  Command   | Address | Offset | Length |   Data   |  CRC   |  CRC  |
+| :----: | :--------: | :-----: | :----: | :----: | :------: | :----: | :---: |
+| Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
+| Bytes  | 1 (`0x18`) |    6    |   1    |   1    | [Length] |   1    |   1   |
 
-```rust
-struct CmdPWR {
-  /// The address of the slave to write to
-  address: [u8; 6],
-
-  /// The offset in the slave's memory to write to
-  offset: u16,
-
-  /// The length of the data to be written
-  length: u16,
-
-  /// The data to be written to the slave's memory
-  data: [u8; length],
-}
-```
 
 ## 3.6 - LRD - Logically Addressed Read
 
@@ -173,27 +137,10 @@ The `Logically Addressed Read - LRD` command (`0x20` - `0x2F`) is used to reques
 The addressing scheme uses the logical address, where the lower nibble of the command is the universe and the slave's address is in the `address` field.
 A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
 
-To deliver the requested data, the slave fills the `data` slots
-
-```rust
-struct CmdPRD {
-  /// The address of the slave to read from
-  address: u8,
-
-  /// The offset in the slave's memory to read from
-  offset: u16,
-
-  /// The length of the data to be read
-  length: u16,
-
-  /// The CRC for the request-part of the frame,
-  /// includes: start, address, offset, length
-  crc: u8,
-
-  /// The response data filled in by the slave
-  data: [u8; length],
-}
-```
+|        |  Command   | Address | Offset | Length |  CRC   |   Data   |  CRC  |
+| :----: | :--------: | :-----: | :----: | :----: | :----: | :------: | :---: |
+| Source |   Master   | Master  | Master | Master | Master |  Slave   | Slave |
+| Bytes  | 1 (`0x2_`) |    1    |   2    |   1    |   1    | [Length] |   1   |
 
 ## 3.6 - LWR - Logically Addressed Write
 
@@ -201,20 +148,8 @@ The `Logically Addressed Write Request - LWQ` command (`0x40` - `0x4F`) is used 
 The addressing scheme uses the logical address, where the lower nibble of the command is the universe and the slave's address is in the `address` field.
 A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
 
-There is no response to this frame
+|        |  Command   | Address | Offset | Length |   Data   |  CRC   |  CRC  |
+| :----: | :--------: | :-----: | :----: | :----: | :------: | :----: | :---: |
+| Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
+| Bytes  | 1 (`0x4_`) |    1    |   2    |   1    | [Length] |   1    |   1   |
 
-```rust
-struct CmdLWR {
-  /// The address of the slave to write to
-  address: u8,
-
-  /// The offset in the slave's memory to write to
-  offset: u16,
-
-  /// The length of the data to be written
-  length: u16,
-
-  /// The data to be written to the slave's memory
-  data: [u8; length],
-}
-```
