@@ -100,7 +100,7 @@ A `BWR` frame looks as follows:
 |        |  Command   | Offset | Length |   Data   |  CRC   |
 | :----: | :--------: | :----: | :----: | :------: | :----: |
 | Source |   Master   | Master | Master |  Master  | Master |
-| Bytes  | 1 (`0x14`) |   2    |   2    | [Length] |   1    |
+| Bytes  | 1 (`0x14`) |   2    |   1    | [Length] |   1    |
 
 There is no response to this frame, as it is used in a broadcasting manner. This means that the master has no feedback on whether the transaction succeeded or not.
 
