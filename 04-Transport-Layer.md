@@ -1,5 +1,10 @@
 # Sondbus transport layer
 
+This document describes the transport layer of the sondbus suite of protocols.
+It is responsible for the reliable exchange of commands over a network layer.
+
+# 1 - Overview
+
 The sondbus transport layer is essentially a framework for reliably reading from and writing to memory of a remote device over a protocol.
 This allows for a nice compromise of flexibility of the protocol and minimalism in its implementation.
 The aspect of minimalism is especially important in the context of embedded systems, as devices on the network do only need to implement a few basic commands to fully participate in the network without hindering other "bigger" devices ability to communicate in a flexible manner.
@@ -9,59 +14,33 @@ This approach of reading and writing memory essentially decouples the bus logic 
 Each party reads from and writes to the memory area in an autonomous way.
 This approach closely resembles memory-mapped devices, as commonly found in computer systems, essentially extending a computer's memory map over the network to other computers.
 
-All multi-byte values are encoded in little-endian fashion.
+# 2 - General Information
 
-The transport layer of sondbus comes in two flavors:
+This section lists miscellaneous information about this document and the protocol it specifies.
 
-- [1: `Single-Command`](#1---single-command): Single commands are cycled through the bus
-- [2: `Multi-Command`](#2---multi-command): Multiple commands are cycled through the bus (optional)
+## 2.1 - Endianness
 
-Sondbus requires the [Single-Command](#1---single-command) mode to be implemented by all devices that are on the bus. \
-The [Multi-Command](#2---multi-command) mode can only be used if **all** devices on the network support this mode.
+All multi-byte values in this layer are treated in a little-endian form.
+This does not influence the payload sections of commands, as arbitrary data can be packaged there.
 
-# 1 - Single-Command
+## 2.2 - Command packing
 
-The single-command mode allows only one command in flight at all times.
-This mode is well-suited for the smaller embedded side, as the devices on the bus only need space and implementations that cover one single command.
-
-| Start Byte | Command | Payload | CRC |
-| :--------: | :-----: | :-----: | :-: |
-|     8      |    8    |    n    |  8  |
-
-- `Start Byte`: This byte is always `0x55`
-- `Command`: The command to be transmitted
-- `Payload`: The optional payload of the command
-- `CRC`: A CRC for the frame
-
-# 2 - Multi-Command
-
-The multi-command mode allows a connection to carry multiple commands to be executed in one bus cycle.
-This mode is suited to bigger systems that have more processing and memory capacities.
-
-| Start Byte | Number of Commands |  Commands   | CRC |
-| :--------: | :----------------: | :---------: | :-: |
-|      8     |         16         | [8 + n + 8] |  8  |
-
-- `Start Byte`: This byte is always `0xAA`
-- `Number of Commands`: The number of commands that are wrapped in this frame
-- `Commands`: 0 or more commands appended to each other
-- `CRC`: A CRC for the frame
-
-Each command is followed by a CRC!
+This document describes the contents of the `command` section of a transmission.
+This means that the start of a command is not part of this document, but is rather documented and described in the [Network Layer](03-Network-Layer.md) document.
 
 # 3 - Commands
 
 The core command set of sondbus (`0x00` - `0x0F`) is a minimal set of instructions that must be supported by every device that implements the sondbus protocol.
 
 - Management commands
-	- [3.1: `0x00` - `NOP` - NoOp](#31---nop)
-	- [3.2: `0x01` - `SYN` - Sync](#32---sync)
+  - [3.1: `0x00` - `NOP` - NoOp](#31---nop)
+  - [3.2: `0x01` - `SYN` - Sync](#32---sync)
 - Short commands
-	- [3.3: `0x05` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
-	- [3.4: `0x06` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
-	- [3.5: `0x07` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
-	- [3.6: `0x08` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
-	- [3.7: `0x09` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
+  - [3.3: `0x05` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
+  - [3.4: `0x06` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
+  - [3.5: `0x07` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
+  - [3.6: `0x08` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
+  - [3.7: `0x09` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
 
 ## 3.1 - Nop
 
@@ -136,7 +115,6 @@ A slave may only respond to this frame, if it is in sync and its MAC address mat
 | Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
 | Bytes  | 1 (`0x07`) |    6    |   1    |   1    | [Length] |   1    |   1   |
 
-
 ## 3.6 - LRD - Logically Addressed Read
 
 The `Logically Addressed Read - LRD` command (`0x08`) is used to request data from a slave's memory area.
@@ -158,4 +136,3 @@ A slave may only respond to this frame, if it is in sync and its universe and ad
 | :----: | :--------: | :-----: | :----: | :----: | :------: | :----: | :---: |
 | Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
 | Bytes  | 1 (`0x09`) |    1    |   1    |   1    | [Length] |   1    |   1   |
-
