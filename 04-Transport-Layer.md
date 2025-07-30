@@ -30,28 +30,33 @@ This means that the start of a command is not part of this document, but is rath
 
 # 3 - Commands
 
-The core command set of sondbus (`0x00` - `0x0F`) is a minimal set of instructions that must be supported by every device that implements the sondbus protocol.
+The core command set of sondbus (`0x0` - `0xF`) is a minimal set of instructions that must be supported by every device that implements the sondbus protocol.
 
 - Management commands
-  - [3.1: `0x00` - `NOP` - NoOp](#31---nop)
-  - [3.2: `0x01` - `SYN` - Sync](#32---sync)
+  - [3.1: `0x0` - `NOP` - NoOp](#31---nop)
+  - [3.2: `0x1` - `SYN` - Sync](#32---sync)
 - Short commands
-  - [3.3: `0x05` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
-  - [3.4: `0x06` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
-  - [3.5: `0x07` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
-  - [3.6: `0x08` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
-  - [3.7: `0x09` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
+  - [3.3: `0x5` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
+  - [3.4: `0x6` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
+  - [3.5: `0x7` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
+  - [3.6: `0x8` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
+  - [3.7: `0x9` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
 
 ## 3.1 - Nop
 
-The `NOP` command (`0x00`) is, as the name implies, a no-operation.
+The `NOP` command (`0x0`) is, as the name implies, a no-operation.
 Its payload is nothing and zero-length.
+
+|        |  Command   |  CRC   |
+| :----- | :--------: | :----: |
+| Source |   Master   | Master |
+| Bytes  | 1 (`0x_0`) |   1    |
 
 This command yields no response.
 
 ## 3.2 - Sync
 
-The `Sync` command (`0x01`) is used to synchronize slaves and the master.
+The `Sync` command (`0x1`) is used to synchronize slaves and the master.
 This need arises from the byte-oriented nature of sondbus, as a newly joined slave or errored slave may loose track of the current conversation.
 For it to rejoin the communication, this frame type can be used.
 
@@ -63,7 +68,7 @@ A frame with a `SYN` command looks as follows:
 |        |  Command   | Magic  | Version |  CRC   |
 | :----- | :--------: | :----: | :-----: | :----: |
 | Source |   Master   | Master | Master  | Master |
-| Bytes  | 1 (`0x10`) |   15   |    1    |   1    |
+| Bytes  | 1 (`0x_1`) |   15   |    1    |   1    |
 
 ### 3.2.1 - Sync Magic
 
@@ -76,7 +81,7 @@ These 15 bytes + the CRC at the end of the frame should be unique enough to make
 
 ## 3.3 - BWR - Broadcast Write
 
-The `Broadcast Write` command (`0x05`) can be used to write to all synchronized slave's memories.
+The `Broadcast Write` command (`0x5`) can be used to write to all synchronized slave's memories.
 This command yields no response, as the responses would collide.
 Due to this fact, the master has no indication of whether the command has succeeded or not.
 
@@ -85,13 +90,13 @@ A `BWR` frame looks as follows:
 |        |  Command   | Offset | Length |   Data   |  CRC   |
 | :----: | :--------: | :----: | :----: | :------: | :----: |
 | Source |   Master   | Master | Master |  Master  | Master |
-| Bytes  | 1 (`0x05`) |   1    |   1    | [Length] |   1    |
+| Bytes  | 1 (`0x_5`) |   1    |   1    | [Length] |   1    |
 
 There is no response to this frame, as it is used in a broadcasting manner. This means that the master has no feedback on whether the transaction succeeded or not.
 
 ## 3.4 - PRD - Physically Addressed Read
 
-The `Physically Addressed Read - PRD` command (`0x06`) is used to request data from a slave's memory area.
+The `Physically Addressed Read - PRD` command (`0x6`) is used to request data from a slave's memory area.
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
@@ -100,39 +105,39 @@ A `PRD` frame looks as follows:
 |        |  Command   | Address | Offset | Length |  CRC   |   Data   |  CRC  |
 | :----: | :--------: | :-----: | :----: | :----: | :----: | :------: | :---: |
 | Source |   Master   | Master  | Master | Master | Master |  Slave   | Slave |
-| Bytes  | 1 (`0x06`) |    6    |   1    |   1    |   1    | [Length] |   1   |
+| Bytes  | 1 (`0x_6`) |    6    |   1    |   1    |   1    | [Length] |   1   |
 
 The `Data` and last `CRC` sections are filled by the slave to deliver and confirm the data that has been read.
 
 ## 3.5 - PWR - Physically Addressed Write
 
-The `Physically Addressed Write - PWR` command (`0x07`) is used to write data to a slave's memory area.
+The `Physically Addressed Write - PWR` command (`0x7`) is used to write data to a slave's memory area.
 The addressing scheme uses the slave's physical MAC address.
 A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
 
 |        |  Command   | Address | Offset | Length |   Data   |  CRC   |  CRC  |
 | :----: | :--------: | :-----: | :----: | :----: | :------: | :----: | :---: |
 | Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
-| Bytes  | 1 (`0x07`) |    6    |   1    |   1    | [Length] |   1    |   1   |
+| Bytes  | 1 (`0x_7`) |    6    |   1    |   1    | [Length] |   1    |   1   |
 
 ## 3.6 - LRD - Logically Addressed Read
 
-The `Logically Addressed Read - LRD` command (`0x08`) is used to request data from a slave's memory area.
+The `Logically Addressed Read - LRD` command (`0x8`) is used to request data from a slave's memory area.
 The addressing scheme uses the logical address.
 A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
 
 |        |  Command   | Address | Offset | Length |  CRC   |   Data   |  CRC  |
 | :----: | :--------: | :-----: | :----: | :----: | :----: | :------: | :---: |
 | Source |   Master   | Master  | Master | Master | Master |  Slave   | Slave |
-| Bytes  | 1 (`0x08`) |    1    |   1    |   1    |   1    | [Length] |   1   |
+| Bytes  | 1 (`0x_8`) |    1    |   1    |   1    |   1    | [Length] |   1   |
 
 ## 3.7 - LWR - Logically Addressed Write
 
-The `Logically Addressed Write Request - LWQ` command (`0x09`) is used to write data to a slave's memory area.
+The `Logically Addressed Write Request - LWQ` command (`0x9`) is used to write data to a slave's memory area.
 The addressing scheme uses the logical address.
 A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
 
 |        |  Command   | Address | Offset | Length |   Data   |  CRC   |  CRC  |
 | :----: | :--------: | :-----: | :----: | :----: | :------: | :----: | :---: |
 | Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
-| Bytes  | 1 (`0x09`) |    1    |   1    |   1    | [Length] |   1    |   1   |
+| Bytes  | 1 (`0x_9`) |    1    |   1    |   1    | [Length] |   1    |   1   |
