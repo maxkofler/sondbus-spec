@@ -30,114 +30,167 @@ This means that the start of a command is not part of this document, but is rath
 
 # 3 - Commands
 
-The core command set of sondbus (`0x0` - `0xF`) is a minimal set of instructions that must be supported by every device that implements the sondbus protocol.
+Sondbus defines a set of commands that build the core of the communication infrastructure.
+All commands must be implemented by all slaves to be compliant with this specification.
+There is the exception of [Optional Features](#4---optional-features) which specified some features that can be available on a per-slave basis.
+These features are clearly marked as optional.
 
-- Management commands
-  - [3.1: `0x0` - `NOP` - NoOp](#31---nop)
-  - [3.2: `0x1` - `SYN` - Sync](#32---sync)
-- Short commands
-  - [3.3: `0x5` - `BWR` - Broadcast Write](#33---bwr---broadcast-write)
-  - [3.4: `0x6` - `PRD` - Physically Addressed Read](#34---prd---physically-addressed-read)
-  - [3.5: `0x7` - `PWR` - Physically Addressed Write](#35---pwr---physically-addressed-write)
-  - [3.6: `0x8` - `LRD` - Logically Addressed Read](#36---lrd---logically-addressed-read)
-  - [3.7: `0x9` - `LWR` - Logically Addressed Write](#36---lwr---logically-addressed-write)
+| Bit Position |                     Description                     |
+| :----------: | :-------------------------------------------------: |
+|    0 - 4     | [Command Set Specific](#311---command-set-specific) |
+|      5       | [Command Set Selector](#312---command-set-selector) |
+|    6 - 7     |      [Sequence Number](#313---sequence-number)      |
 
-## 3.1 - Nop
+### 3.1.1 - Command Set Specific
 
-The `NOP` command (`0x0`) is, as the name implies, a no-operation.
-Its payload is nothing and zero-length.
+These bits are specific to the command set that is selected by the [Command Set Selector](#312---command-set-selector).
 
-|        |  Command   |  CRC   |
-| :----- | :--------: | :----: |
-| Source |   Master   | Master |
-| Bytes  | 1 (`0x_0`) |   1    |
+### 3.1.2 - Command Set Selector
 
-This command yields no response.
+This bit selects between the two available command sets:
 
-## 3.2 - Sync
+- `false` => [Memory Command Set](#32-memory-command-set)
+- `true` => [Management Command Set](#33---management-command-set)
 
-The `Sync` command (`0x1`) is used to synchronize slaves and the master.
-This need arises from the byte-oriented nature of sondbus, as a newly joined slave or errored slave may loose track of the current conversation.
-For it to rejoin the communication, this frame type can be used.
+### 3.1.3 - Sequence Number
 
-This frame type yields no response, as it is used in a broadcasting manner.
-If a slave is not in sync, it will not process any commands that are not this one, and thus also yield no responses, making sure an out-of-sync slave cannot disrupt communication.
+These bits provide sequencing information to the slave.
+The sequence number goes from `0` to `3` and rolls over at the end.
+If a slave receives a command that is out of the sequence, it will loose sync with the bus.
 
-A frame with a `SYN` command looks as follows:
+## 3.2 Memory Command Set
 
-|        |  Command   | Magic  | Version |  CRC   |
-| :----- | :--------: | :----: | :-----: | :----: |
-| Source |   Master   | Master | Master  | Master |
-| Bytes  | 1 (`0x_1`) |   15   |    1    |   1    |
+This command set allows access to the memory region defined and exposed by a slave.
+The 5 command set specific bits are explained in the following table:
 
-### 3.2.1 - Sync Magic
+| Bit Position |                        Description                         |
+| :----------: | :--------------------------------------------------------: |
+|       0      |               [Operation](#3211---operation)               |
+|    1 + 2     |   [Slave addressing mode](#3212---slave-addressing-mode)   |
+|      3       | [Operation Offset Length](#3213---operation-offset-length) |
+|      4       |   [Operation Size Length](#3214---operation-size-length)   |
 
-The `magic` field of the `Sync` command is fixed as the following sequence of 15 bytes.
-These 15 bytes + the CRC at the end of the frame should be unique enough to make this frame distinguishable from all other communication.
+A frame using the Memory Command Set has the following general structure:
 
-```hex
-1F 2E 3D 4C 5B 6A 79 88 97 A6 B5 C4 D3 E2 F1
-```
+| Length in Octets |     Source     |              Description              |
+| :--------------: | :------------: | :-----------------------------------: |
+|        1         |     Master     |                 Start                 |
+|        1         |     Master     |       [Command](#321---command)       |
+|    0 / 2 / 6     |     Master     | [Slave Address](#322---slave-address) |
+|      1 / 2       |     Master     |        [Offset](#323---offset)        |
+|      1 / 2       |     Master     |          [Size](#324---size)          |
+|        1         |     Master     |    [Header CRC](#325---header-crc)    |
+|        n         | Master / Slave |       [Payload](#326---payload)       |
+|        1         | Master / Slave |           [CRC](#327---crc)           |
 
-## 3.3 - BWR - Broadcast Write
+### 3.2.1 - Command
 
-The `Broadcast Write` command (`0x5`) can be used to write to all synchronized slave's memories.
-This command yields no response, as the responses would collide.
-Due to this fact, the master has no indication of whether the command has succeeded or not.
+This section explains the 5 command-set specific bits in the `Command` byte:
 
-A `BWR` frame looks as follows:
+#### 3.2.1.1 - Operation
 
-|        |  Command   | Offset | Length |   Data   |  CRC   |
-| :----: | :--------: | :----: | :----: | :------: | :----: |
-| Source |   Master   | Master | Master |  Master  | Master |
-| Bytes  | 1 (`0x_5`) |   1    |   1    | [Length] |   1    |
+This bit indicates whether the master requests a read or write operation:
 
-There is no response to this frame, as it is used in a broadcasting manner. This means that the master has no feedback on whether the transaction succeeded or not.
+- `false` => Read
+- `true` => Write
 
-## 3.4 - PRD - Physically Addressed Read
+#### 3.2.1.2 - Slave addressing mode
 
-The `Physically Addressed Read - PRD` command (`0x6`) is used to request data from a slave's memory area.
-The addressing scheme uses the slave's physical MAC address.
-A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
+These 2 bits indicate the mode by which the targeted slave is addressed:
 
-A `PRD` frame looks as follows:
+- `0` => No address, broadcast
+- `1` => Physically Addressed by MAC
+- `2` => Logically Addressed by Logical Address (optional - See [Optional Features](#4---optional-features))
+- `3` => No address, logical memory operation using MMUs (optional - See [Optional Features](#4---optional-features))
 
-|        |  Command   | Address | Offset | Length |  CRC   |   Data   |  CRC  |
-| :----: | :--------: | :-----: | :----: | :----: | :----: | :------: | :---: |
-| Source |   Master   | Master  | Master | Master | Master |  Slave   | Slave |
-| Bytes  | 1 (`0x_6`) |    6    |   1    |   1    |   1    | [Length] |   1   |
+#### 3.2.1.3 - Operation Offset Length
 
-The `Data` and last `CRC` sections are filled by the slave to deliver and confirm the data that has been read.
+This bit indicates the length of the [Offset](#323---offset) field of the command:
 
-## 3.5 - PWR - Physically Addressed Write
+- `false` => 8 bit
+- `true` => 16 bit (optional)
 
-The `Physically Addressed Write - PWR` command (`0x7`) is used to write data to a slave's memory area.
-The addressing scheme uses the slave's physical MAC address.
-A slave may only respond to this frame, if it is in sync and its MAC address matches the `address` field of the request exactly.
+#### 3.2.1.4 - Operation Size Length
 
-|        |  Command   | Address | Offset | Length |   Data   |  CRC   |  CRC  |
-| :----: | :--------: | :-----: | :----: | :----: | :------: | :----: | :---: |
-| Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
-| Bytes  | 1 (`0x_7`) |    6    |   1    |   1    | [Length] |   1    |   1   |
+This bit indicates the length of the [Length](#324---length) field of the command:
 
-## 3.6 - LRD - Logically Addressed Read
+- `false` => 8 bit
+- `true` => 16 bit (optional)
 
-The `Logically Addressed Read - LRD` command (`0x8`) is used to request data from a slave's memory area.
-The addressing scheme uses the logical address.
-A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
+### 3.2.2 - Slave Address
 
-|        |  Command   | Address | Offset | Length |  CRC   |   Data   |  CRC  |
-| :----: | :--------: | :-----: | :----: | :----: | :----: | :------: | :---: |
-| Source |   Master   | Master  | Master | Master | Master |  Slave   | Slave |
-| Bytes  | 1 (`0x_8`) |    1    |   1    |   1    |   1    | [Length] |   1   |
+This field contains the address of the slave that this command is targeted at.
+It depends in the setting of the [Slave Addressing Mode](#3212---slave-addressing-mode) bits of the [Command](#321---command) byte of the command:
 
-## 3.7 - LWR - Logically Addressed Write
+- `0` => 0 bytes
+- `1` => 6 bytes for the MAC address of the slave
+- `2` => 2 bytes for the logical address of the slave
+- `3` => 0 bytes
 
-The `Logically Addressed Write Request - LWQ` command (`0x9`) is used to write data to a slave's memory area.
-The addressing scheme uses the logical address.
-A slave may only respond to this frame, if it is in sync and its universe and address exactly match the slave's values.
+### 3.2.3 - Offset
 
-|        |  Command   | Address | Offset | Length |   Data   |  CRC   |  CRC  |
-| :----: | :--------: | :-----: | :----: | :----: | :------: | :----: | :---: |
-| Source |   Master   | Master  | Master | Master |  Master  | Master | Slave |
-| Bytes  | 1 (`0x_9`) |    1    |   1    |   1    | [Length] |   1    |   1   |
+The `Offset` field contains the offset at which the operation is performed in the slave's memory area.
+The size of this field depends on the [Operation Offset Length](#3213---operation-offset-length) bit in the [Command](#321---command) byte of the command:
+
+- `false` => 8 bit (1 byte)
+- `true` => 16 bit (2 bytes)
+
+The 16-bit addressing mode is optional to each slave and can be supported in 2 ways, explained in the [Optional Features](#4---optional-features) section of this document.
+
+### 3.2.4 - Size
+
+The `Size` field contains the amount of octets that are to be transferred by this command.
+The size of this field depends on the [Operation Size Length](#3213---operation-size-length) bit in the [Command](#321---command) byte of the command:
+
+- `false` => 8 bit (1 byte)
+- `true` => 16 bit (2 bytes)
+
+The 16-bit addressing mode is optional to each slave and can be supported in 2 ways, explained in the [Optional Features](#4---optional-features) section of this document.
+
+### 3.2.5 - Header CRC
+
+The `Header CRC` field contains a CRC of the frame contents up to this point.
+It confirms the contents of the header to the slave to inform it on whether it can trust the submitted data or not.
+
+### 3.2.6 - Payload
+
+The `Data` field contains the payload data.
+Depending on the `Operation` bit in the `Command`, this data is provided by:
+
+- `false` => Slave
+- `true` => Master
+
+### 3.2.7 - CRC
+
+The `CRC` field contains a CRC of the frame contents up to this point.
+It confirms to the receiving end the data that has been transmitted.
+Depending on the `Operation` bit in the `Command`, this field is sent by:
+
+- `false` => Slave
+- `true` => Master
+
+## 3.3 - Management Command Set
+
+# 4 - Optional Features
+
+Some features are marked as optional to allow for minimal implementations of this bus system.
+A master is in charge to find and use a subset of the available features and to not violate the limits of any device.
+A feature can be implemented in 2 levels:
+
+- [Partial Support](#41---partial-support)
+- [Full Support](#42---full-support)
+
+If a master does not respect the slave-imposed limits on features, the slave will go out of sync.
+
+## 4.1 - Partial Support
+
+A slave can partially support a feature in the sense that it can tolerate the feature being used on the bus, meaning that it does not get out of sync if the feature is being used on other slaves.
+This means that the slave can receive the data enabled by the feature, but it cannot be targeted by it.
+
+An example can explain this best:
+If one slave partially supports the 16-bit addressing modes of the [Memory Command Set](#32-memory-command-set) and another supports it fully, it is ok for the master to use the 16-bit addressing modes on the slave that fully supports it, as the partially supporting slave can tolerate and parse them.
+The master can, however, never target the partially supporting slave with a 16-bit addressed command, as it cannot handle them - that would require [Full Support](#42---full-support).
+
+## 4.2 - Full Support
+
+A slave fully supports a feature if it can also be targeted by this feature.
