@@ -72,16 +72,17 @@ The 5 command set specific bits are explained in the following table:
 
 A frame using the Memory Command Set has the following general structure:
 
-| Length in Octets |     Source     |              Description              |
-| :--------------: | :------------: | :-----------------------------------: |
-|        1         |     Master     |                 Start                 |
-|        1         |     Master     |       [Command](#321---command)       |
-|    0 / 2 / 6     |     Master     | [Slave Address](#322---slave-address) |
-|      1 / 2       |     Master     |        [Offset](#323---offset)        |
-|      1 / 2       |     Master     |          [Size](#324---size)          |
-|        1         |     Master     |    [Header CRC](#325---header-crc)    |
-|        n         | Master / Slave |       [Payload](#326---payload)       |
-|        1         | Master / Slave |           [CRC](#327---crc)           |
+| Length in Octets |     Source     |                    Description                    |
+| :--------------: | :------------: | :-----------------------------------------------: |
+|        1         |     Master     |                       Start                       |
+|        1         |     Master     |             [Command](#321---command)             |
+|    0 / 2 / 6     |     Master     |       [Slave Address](#322---slave-address)       |
+|      1 / 2       |     Master     |              [Offset](#323---offset)              |
+|      1 / 2       |     Master     |                [Size](#324---size)                |
+|        1         |     Master     |          [Header CRC](#325---header-crc)          |
+|        n         | Master / Slave |             [Payload](#326---payload)             |
+|        1         | Master / Slave |                 [CRC](#327---crc)                 |
+|        1         |     Slave      | [Acknowledgement CRC](#328---acknowledgement-crc) |
 
 ### 3.2.1 - Command
 
@@ -168,6 +169,11 @@ Depending on the `Operation` bit in the `Command`, this field is sent by:
 
 - `false` => Slave
 - `true` => Master
+
+### 3.2.8 - Acknowledgement CRC
+
+This field is an acknowledgement to the write operation by the master.
+It only applies to non-broadcast write operations and contains all the fields of the write command including the CRC sent by the master.
 
 ## 3.3 - Management Command Set
 
