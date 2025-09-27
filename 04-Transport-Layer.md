@@ -177,6 +177,49 @@ It only applies to non-broadcast write operations and contains all the fields of
 
 ## 3.3 - Management Command Set
 
+This set of commands is used to interface with the slaves in a way that does not access the memory region of individual slaves.
+There are 32 commands available in this set, of which a subset is reserved for future use and are to be enabled as optional features in the future.
+
+The following commands are specified:
+
+- `0x00`: [Sync](#331---sync)
+
+### 3.3.1 - Sync
+
+The synchronization command essentially enables a slave's transceiver.
+If a slave first boots up, it will listen for and react only to this command.
+This is required, as the lower layer of sondbus may not always provide a framed transmission, so the synchronization has to be handled here.
+
+| Length in Octets | Source |                 Description                  |
+| :--------------: | :----: | :------------------------------------------: |
+|        1         | Master |                    Start                     |
+|        1         | Master |          [Command](#321---command)           |
+|        15        | Master |       [Sync Magic](#3311---sync-magic)       |
+|        1         | Master | [Protocol Version](#3312---protocol-version) |
+|        1         | Master |              [CRC](#327---crc)               |
+
+### 3.3.1.1 - Sync Magic
+
+This field of the `Sync` command is fixed as the following sequence of 15 bytes.
+These 15 bytes + the CRC at the end of the frame should be unique enough to make this frame distinguishable from all other communication.
+
+```hex
+1F 2E 3D 4C 5B 6A 79 88 97 A6 B5 C4 D3 E2 F1
+```
+
+### 3.3.1.2 - Protocol Version
+
+This byte of the `Sync` command is used to indicate to the slaves the feature set that is being used in this communication establishment.
+This byte will change rarely (if ever), as it might lock out some devices that do not implement the version.
+
+If a slave does not support the feature set indicated by this version, it may not continue to take part in the communication, as if it never got synchronized.
+
+Currently, there is only one value for this field:
+
+- `0x01`: Version 1.0.0 of the sondbus protocol.
+
+All other values may be treated as invalid and shall fail synchronization.
+
 # 4 - Optional Features
 
 Some features are marked as optional to allow for minimal implementations of this bus system.
